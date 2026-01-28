@@ -1,0 +1,835 @@
+# FRONTEND PROJECT STRUCTURE (React)
+
+## Recommended Folder Structure
+
+```
+gym-frontend/
+├── public/
+│   ├── index.html
+│   ├── favicon.ico
+│   └── assets/
+│       └── images/
+│
+├── src/
+│   ├── api/
+│   │   ├── axios.js              # Axios instance configuration
+│   │   ├── authApi.js            # Authentication API calls
+│   │   ├── userApi.js            # User API calls
+│   │   ├── membershipApi.js
+│   │   ├── classApi.js
+│   │   ├── bookingApi.js
+│   │   ├── notificationApi.js
+│   │   └── dashboardApi.js
+│   │
+│   ├── components/
+│   │   ├── common/
+│   │   │   ├── Button.jsx
+│   │   │   ├── Input.jsx
+│   │   │   ├── Card.jsx
+│   │   │   ├── Modal.jsx
+│   │   │   ├── Table.jsx
+│   │   │   ├── Spinner.jsx
+│   │   │   ├── Alert.jsx
+│   │   │   └── Badge.jsx
+│   │   │
+│   │   ├── layout/
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── Sidebar.jsx
+│   │   │   ├── Footer.jsx
+│   │   │   ├── MobileNav.jsx
+│   │   │   └── Layout.jsx
+│   │   │
+│   │   ├── auth/
+│   │   │   ├── LoginForm.jsx
+│   │   │   └── PasswordResetForm.jsx
+│   │   │
+│   │   ├── member/
+│   │   │   ├── MembershipCard.jsx
+│   │   │   ├── BookingCard.jsx
+│   │   │   ├── ClassList.jsx
+│   │   │   └── ProfileEdit.jsx
+│   │   │
+│   │   ├── admin/
+│   │   │   ├── MemberList.jsx
+│   │   │   ├── MemberForm.jsx
+│   │   │   ├── ClassForm.jsx
+│   │   │   ├── PaymentForm.jsx
+│   │   │   ├── StatsCard.jsx
+│   │   │   └── ExpiringMembersList.jsx
+│   │   │
+│   │   └── notifications/
+│   │       ├── NotificationBell.jsx
+│   │       └── NotificationItem.jsx
+│   │
+│   ├── pages/
+│   │   ├── auth/
+│   │   │   └── Login.jsx
+│   │   │
+│   │   ├── member/
+│   │   │   ├── MemberDashboard.jsx
+│   │   │   ├── Classes.jsx
+│   │   │   ├── MyBookings.jsx
+│   │   │   └── Profile.jsx
+│   │   │
+│   │   └── admin/
+│   │       ├── AdminDashboard.jsx
+│   │       ├── Members.jsx
+│   │       ├── MemberDetail.jsx
+│   │       ├── ClassManagement.jsx
+│   │       ├── Reports.jsx
+│   │       └── Settings.jsx
+│   │
+│   ├── hooks/
+│   │   ├── useAuth.js
+│   │   ├── useApi.js
+│   │   ├── useNotifications.js
+│   │   └── useDebounce.js
+│   │
+│   ├── store/
+│   │   ├── authStore.js          # Zustand store for auth
+│   │   ├── memberStore.js
+│   │   ├── classStore.js
+│   │   └── notificationStore.js
+│   │
+│   ├── utils/
+│   │   ├── constants.js
+│   │   ├── dateHelpers.js
+│   │   ├── validators.js
+│   │   └── formatters.js
+│   │
+│   ├── routes/
+│   │   ├── AppRoutes.jsx
+│   │   ├── PrivateRoute.jsx
+│   │   └── AdminRoute.jsx
+│   │
+│   ├── styles/
+│   │   └── index.css             # Tailwind imports
+│   │
+│   ├── App.jsx
+│   ├── index.jsx
+│   └── setupTests.js
+│
+├── .env
+├── .env.example
+├── .gitignore
+├── package.json
+├── tailwind.config.js
+├── postcss.config.js
+└── README.md
+```
+
+---
+
+## File Templates
+
+### 1. src/index.jsx
+```jsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './styles/index.css';
+import App from './App';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+```
+
+---
+
+### 2. src/App.jsx
+```jsx
+import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import AppRoutes from './routes/AppRoutes';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+      <ToastContainer 
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+      />
+    </BrowserRouter>
+  );
+}
+
+export default App;
+```
+
+---
+
+### 3. src/api/axios.js
+```javascript
+import axios from 'axios';
+import { toast } from 'react-toastify';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+// Create axios instance
+const axiosInstance = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Request interceptor - Add auth token
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor - Handle errors
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response) {
+      const { status, data } = error.response;
+
+      // Handle specific status codes
+      if (status === 401) {
+        // Unauthorized - clear token and redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        toast.error('Session expired. Please login again.');
+      } else if (status === 403) {
+        toast.error('You do not have permission to perform this action');
+      } else if (status === 404) {
+        toast.error('Resource not found');
+      } else if (status === 500) {
+        toast.error('Server error. Please try again later.');
+      } else {
+        toast.error(data.error || 'An error occurred');
+      }
+    } else if (error.request) {
+      toast.error('Network error. Please check your connection.');
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export default axiosInstance;
+```
+
+---
+
+### 4. src/api/authApi.js
+```javascript
+import axios from './axios';
+
+export const authApi = {
+  login: (phone, password) => 
+    axios.post('/auth/login', { phone, password }),
+  
+  logout: () => 
+    axios.post('/auth/logout'),
+  
+  verifyToken: () => 
+    axios.get('/auth/verify'),
+  
+  requestPasswordReset: (phone) => 
+    axios.post('/auth/request-reset', { phone }),
+  
+  resetPassword: (phone, reset_code, new_password) => 
+    axios.post('/auth/reset-password', { phone, reset_code, new_password })
+};
+```
+
+---
+
+### 5. src/store/authStore.js (Zustand)
+```javascript
+import { create } from 'zustand';
+import { authApi } from '../api/authApi';
+
+const useAuthStore = create((set) => ({
+  user: JSON.parse(localStorage.getItem('user')) || null,
+  token: localStorage.getItem('token') || null,
+  isAuthenticated: !!localStorage.getItem('token'),
+  loading: false,
+  error: null,
+
+  login: async (phone, password) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await authApi.login(phone, password);
+      const { token, user } = response.data.data;
+      
+      // Save to localStorage
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      set({ 
+        user, 
+        token, 
+        isAuthenticated: true, 
+        loading: false 
+      });
+      
+      return { success: true };
+    } catch (error) {
+      set({ 
+        loading: false, 
+        error: error.response?.data?.error || 'Login failed' 
+      });
+      return { success: false, error: error.response?.data?.error };
+    }
+  },
+
+  logout: async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear localStorage and state
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      set({ 
+        user: null, 
+        token: null, 
+        isAuthenticated: false 
+      });
+    }
+  },
+
+  updateUser: (userData) => {
+    const updatedUser = { ...useAuthStore.getState().user, ...userData };
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    set({ user: updatedUser });
+  }
+}));
+
+export default useAuthStore;
+```
+
+---
+
+### 6. src/routes/AppRoutes.jsx
+```jsx
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import PrivateRoute from './PrivateRoute';
+import AdminRoute from './AdminRoute';
+
+// Auth Pages
+import Login from '../pages/auth/Login';
+
+// Member Pages
+import MemberDashboard from '../pages/member/MemberDashboard';
+import Classes from '../pages/member/Classes';
+import MyBookings from '../pages/member/MyBookings';
+import Profile from '../pages/member/Profile';
+
+// Admin Pages
+import AdminDashboard from '../pages/admin/AdminDashboard';
+import Members from '../pages/admin/Members';
+import MemberDetail from '../pages/admin/MemberDetail';
+import ClassManagement from '../pages/admin/ClassManagement';
+import Reports from '../pages/admin/Reports';
+import Settings from '../pages/admin/Settings';
+
+function AppRoutes() {
+  return (
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/login" element={<Login />} />
+
+      {/* Member Routes */}
+      <Route
+        path="/dashboard"
+        element={
+          <PrivateRoute>
+            <MemberDashboard />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/classes"
+        element={
+          <PrivateRoute>
+            <Classes />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/bookings"
+        element={
+          <PrivateRoute>
+            <MyBookings />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <PrivateRoute>
+            <Profile />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Admin Routes */}
+      <Route
+        path="/admin/dashboard"
+        element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/members"
+        element={
+          <AdminRoute>
+            <Members />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/members/:id"
+        element={
+          <AdminRoute>
+            <MemberDetail />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/classes"
+        element={
+          <AdminRoute>
+            <ClassManagement />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/reports"
+        element={
+          <AdminRoute>
+            <Reports />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/settings"
+        element={
+          <AdminRoute>
+            <Settings />
+          </AdminRoute>
+        }
+      />
+
+      {/* Default Redirect */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  );
+}
+
+export default AppRoutes;
+```
+
+---
+
+### 7. src/routes/PrivateRoute.jsx
+```jsx
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import useAuthStore from '../store/authStore';
+import Layout from '../components/layout/Layout';
+
+function PrivateRoute({ children }) {
+  const { isAuthenticated, user } = useAuthStore();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Redirect admin to admin dashboard
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  return <Layout>{children}</Layout>;
+}
+
+export default PrivateRoute;
+```
+
+---
+
+### 8. src/routes/AdminRoute.jsx
+```jsx
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import useAuthStore from '../store/authStore';
+import Layout from '../components/layout/Layout';
+
+function AdminRoute({ children }) {
+  const { isAuthenticated, user } = useAuthStore();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Layout isAdmin>{children}</Layout>;
+}
+
+export default AdminRoute;
+```
+
+---
+
+### 9. src/components/layout/Layout.jsx
+```jsx
+import React from 'react';
+import Navbar from './Navbar';
+import Sidebar from './Sidebar';
+import MobileNav from './MobileNav';
+import useAuthStore from '../../store/authStore';
+
+function Layout({ children, isAdmin = false }) {
+  const { user } = useAuthStore();
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Desktop/Tablet: Navbar + Sidebar */}
+      <div className="hidden md:block">
+        <Navbar />
+        <div className="flex">
+          <Sidebar isAdmin={isAdmin} />
+          <main className="flex-1 p-6">
+            {children}
+          </main>
+        </div>
+      </div>
+
+      {/* Mobile: Content + Bottom Nav */}
+      <div className="md:hidden">
+        <main className="pb-20 p-4">
+          {children}
+        </main>
+        <MobileNav isAdmin={isAdmin} />
+      </div>
+    </div>
+  );
+}
+
+export default Layout;
+```
+
+---
+
+### 10. src/components/common/Button.jsx
+```jsx
+import React from 'react';
+
+function Button({ 
+  children, 
+  variant = 'primary', 
+  size = 'md', 
+  fullWidth = false,
+  disabled = false,
+  loading = false,
+  onClick,
+  type = 'button',
+  className = ''
+}) {
+  const baseStyles = 'font-medium rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
+  
+  const variants = {
+    primary: 'bg-blue-600 text-white hover:bg-blue-700',
+    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300',
+    danger: 'bg-red-600 text-white hover:bg-red-700',
+    success: 'bg-green-600 text-white hover:bg-green-700'
+  };
+
+  const sizes = {
+    sm: 'px-3 py-1.5 text-sm',
+    md: 'px-4 py-2 text-base',
+    lg: 'px-6 py-3 text-lg'
+  };
+
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled || loading}
+      className={`
+        ${baseStyles}
+        ${variants[variant]}
+        ${sizes[size]}
+        ${fullWidth ? 'w-full' : ''}
+        ${className}
+      `}
+    >
+      {loading ? (
+        <span className="flex items-center justify-center">
+          <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          Loading...
+        </span>
+      ) : children}
+    </button>
+  );
+}
+
+export default Button;
+```
+
+---
+
+### 11. src/pages/auth/Login.jsx
+```jsx
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import useAuthStore from '../../store/authStore';
+import Button from '../../components/common/Button';
+import Input from '../../components/common/Input';
+
+function Login() {
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  const navigate = useNavigate();
+  const login = useAuthStore((state) => state.login);
+  const user = useAuthStore((state) => state.user);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const result = await login(phone, password);
+    
+    if (result.success) {
+      toast.success('Login successful!');
+      
+      // Redirect based on role
+      if (user?.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+    } else {
+      toast.error(result.error || 'Login failed');
+    }
+    
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+        <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">
+          Gym Login
+        </h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Input
+            label="Phone Number"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+1234567890"
+            required
+          />
+
+          <Input
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            required
+          />
+
+          <Button 
+            type="submit" 
+            fullWidth 
+            loading={loading}
+          >
+            Login
+          </Button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <a href="#" className="text-sm text-blue-600 hover:underline">
+            Forgot password?
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Login;
+```
+
+---
+
+### 12. package.json
+```json
+{
+  "name": "gym-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.1",
+    "axios": "^1.6.2",
+    "zustand": "^4.4.7",
+    "react-toastify": "^9.1.3",
+    "date-fns": "^2.30.0",
+    "react-icons": "^4.12.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.7",
+    "tailwindcss": "^3.3.6",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
+}
+```
+
+---
+
+### 13. tailwind.config.js
+```javascript
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          50: '#eff6ff',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+        }
+      }
+    },
+  },
+  plugins: [],
+}
+```
+
+---
+
+### 14. .env.example
+```env
+REACT_APP_API_URL=http://localhost:5000/api
+REACT_APP_SOCKET_URL=http://localhost:5000
+```
+
+---
+
+## Installation & Setup Commands
+
+```bash
+# Create React app with Vite
+npm create vite@latest gym-frontend -- --template react
+cd gym-frontend
+
+# Install dependencies
+npm install react-router-dom axios zustand react-toastify date-fns react-icons
+
+# Install Tailwind CSS
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+
+# Start development server
+npm run dev
+```
+
+---
+
+## Mobile-First Responsive Design Tips
+
+### Bottom Navigation (Mobile)
+```jsx
+// src/components/layout/MobileNav.jsx
+import { Home, Calendar, BookOpen, User } from 'react-icons/fi';
+import { NavLink } from 'react-router-dom';
+
+function MobileNav({ isAdmin }) {
+  const memberNav = [
+    { path: '/dashboard', icon: Home, label: 'Home' },
+    { path: '/classes', icon: Calendar, label: 'Classes' },
+    { path: '/bookings', icon: BookOpen, label: 'Bookings' },
+    { path: '/profile', icon: User, label: 'Profile' }
+  ];
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+      <div className="flex justify-around">
+        {memberNav.map(({ path, icon: Icon, label }) => (
+          <NavLink
+            key={path}
+            to={path}
+            className={({ isActive }) => `
+              flex flex-col items-center py-2 px-3 text-xs
+              ${isActive ? 'text-blue-600' : 'text-gray-600'}
+            `}
+          >
+            <Icon className="w-6 h-6 mb-1" />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+export default MobileNav;
+```
+
+---
+
+## Next Steps
+1. Implement all page components
+2. Create reusable UI components
+3. Add form validation
+4. Implement WebSocket for real-time notifications
+5. Add loading states and error boundaries
+6. Optimize performance (React.memo, useMemo, useCallback)
+7. Add PWA support for mobile
+
+---
+
+**End of Frontend Structure Guide**
