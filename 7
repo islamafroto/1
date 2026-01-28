@@ -1,0 +1,438 @@
+# 🏋️ Gym Management System
+
+A comprehensive web application for managing gym operations, including member management, class scheduling, bookings, and automated notifications.
+
+## 📋 Project Overview
+
+This system is designed for small-to-medium gyms to digitize and streamline their operations. It replaces manual processes with an automated, user-friendly platform.
+
+### Key Features
+
+**For Gym Admins:**
+- 👥 Member management (create, edit, search)
+- 💳 Membership tracking and renewal
+- 💰 Payment recording and history
+- 📅 Class scheduling and management
+- 📊 Dashboard with key metrics
+- 📈 Reports and data export
+- ⚙️ System settings configuration
+
+**For Gym Members:**
+- 📱 Mobile-first member portal
+- 🔔 Membership status tracking
+- 🏃 Class browsing and booking
+- 📖 Booking management
+- 🔕 Automated expiration reminders
+- 👤 Profile management
+
+**Automated Features:**
+- 📲 SMS notifications (via Twilio)
+- ⏰ Membership expiration reminders (7, 3, 0 days)
+- 🔄 Recurring class schedule generation
+- 📧 Admin reports
+
+## 🛠️ Technology Stack
+
+### Backend
+- **Runtime:** Node.js (v18+)
+- **Framework:** Express.js
+- **Database:** MySQL 8.0+
+- **Authentication:** JWT (JSON Web Tokens)
+- **SMS Service:** Twilio
+- **Logging:** Winston
+- **Task Scheduling:** node-cron
+
+### Frontend
+- **Framework:** React 18
+- **Build Tool:** Vite
+- **Routing:** React Router v6
+- **State Management:** Zustand
+- **Styling:** Tailwind CSS
+- **HTTP Client:** Axios
+- **Notifications:** React Toastify
+- **Date Handling:** date-fns
+
+### Development Tools
+- **Version Control:** Git
+- **API Testing:** Postman / Thunder Client
+- **Code Quality:** ESLint, Prettier
+- **Testing:** Jest, Supertest
+
+## 📁 Project Structure
+
+```
+gym-management-system/
+├── gym-backend/           # Backend API
+│   ├── src/
+│   │   ├── config/       # Configuration files
+│   │   ├── controllers/  # Request handlers
+│   │   ├── middleware/   # Express middleware
+│   │   ├── models/       # Data models
+│   │   ├── routes/       # API routes
+│   │   ├── services/     # Business logic
+│   │   ├── jobs/         # Cron jobs
+│   │   └── utils/        # Helper functions
+│   ├── tests/            # Tests
+│   ├── uploads/          # File uploads
+│   ├── logs/             # Application logs
+│   └── database/         # Database scripts
+│
+├── gym-frontend/         # React frontend
+│   ├── src/
+│   │   ├── api/         # API integration
+│   │   ├── components/  # React components
+│   │   ├── pages/       # Page components
+│   │   ├── hooks/       # Custom hooks
+│   │   ├── store/       # State management
+│   │   ├── routes/      # Routing config
+│   │   └── utils/       # Utilities
+│   └── public/          # Static assets
+│
+└── docs/                # Documentation
+    ├── API_DOCUMENTATION.md
+    ├── BACKEND_STRUCTURE.md
+    ├── FRONTEND_STRUCTURE.md
+    ├── IMPLEMENTATION_ROADMAP.md
+    └── ENVIRONMENT_SETUP.md
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js v18 or higher
+- MySQL 8.0 or higher
+- Git
+- Twilio account (for SMS)
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd gym-management-system
+```
+
+2. **Set up the database**
+```bash
+# Create database
+mysql -u root -p
+CREATE DATABASE gym_management;
+EXIT;
+
+# Import schema
+cd gym-backend
+mysql -u root -p gym_management < database/schema.sql
+```
+
+3. **Set up backend**
+```bash
+cd gym-backend
+
+# Install dependencies
+npm install
+
+# Create .env file
+cp .env.example .env
+
+# Edit .env with your configuration
+nano .env
+
+# Start development server
+npm run dev
+```
+
+4. **Set up frontend**
+```bash
+cd gym-frontend
+
+# Install dependencies
+npm install
+
+# Create .env file
+cp .env.example .env
+
+# Edit .env with your API URL
+nano .env
+
+# Start development server
+npm run dev
+```
+
+5. **Access the application**
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5000
+- API Health Check: http://localhost:5000/health
+
+### Default Admin Login
+```
+Phone: +1234567890
+Password: Admin@123
+```
+**⚠️ Change this immediately in production!**
+
+## 📚 Documentation
+
+Detailed documentation is available in the `docs/` folder:
+
+1. **[Environment Setup Guide](docs/ENVIRONMENT_SETUP.md)**
+   - Complete setup instructions
+   - Prerequisites and dependencies
+   - Troubleshooting common issues
+
+2. **[API Documentation](docs/API_DOCUMENTATION.md)**
+   - All API endpoints
+   - Request/response formats
+   - Authentication details
+   - Error handling
+
+3. **[Backend Structure](docs/BACKEND_STRUCTURE.md)**
+   - Project organization
+   - Code templates
+   - Best practices
+
+4. **[Frontend Structure](docs/FRONTEND_STRUCTURE.md)**
+   - React component structure
+   - State management
+   - Routing configuration
+
+5. **[Implementation Roadmap](docs/IMPLEMENTATION_ROADMAP.md)**
+   - 8-week development plan
+   - Phase-by-phase tasks
+   - Testing checklists
+
+## 🗄️ Database Schema
+
+### Main Tables
+- `users` - Admin and member accounts
+- `memberships` - Subscription records
+- `payments` - Payment transactions
+- `classes` - Recurring class schedules
+- `class_instances` - Actual class occurrences
+- `bookings` - Member class bookings
+- `notifications` - System notifications
+- `settings` - System configuration
+- `admin_actions` - Audit log
+
+See [schema.sql](gym-backend/database/schema.sql) for complete schema.
+
+## 🔐 Environment Variables
+
+### Backend (.env)
+```env
+NODE_ENV=development
+PORT=5000
+
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=gym_management
+
+JWT_SECRET=your-secret-key
+JWT_EXPIRES_IN=7d
+
+TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_PHONE_NUMBER=+1234567890
+
+FRONTEND_URL=http://localhost:3000
+```
+
+### Frontend (.env)
+```env
+VITE_API_URL=http://localhost:5000/api
+VITE_SOCKET_URL=http://localhost:5000
+```
+
+## 🧪 Testing
+
+### Backend Tests
+```bash
+cd gym-backend
+
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run with coverage
+npm test -- --coverage
+```
+
+### Frontend Tests
+```bash
+cd gym-frontend
+
+# Run tests
+npm test
+
+# Run with coverage
+npm test -- --coverage
+```
+
+## 📦 Deployment
+
+### Production Build
+
+**Backend:**
+```bash
+cd gym-backend
+npm install --production
+NODE_ENV=production npm start
+```
+
+**Frontend:**
+```bash
+cd gym-frontend
+npm run build
+# Serve the dist/ folder with Nginx or similar
+```
+
+### Recommended Hosting
+- **Backend:** DigitalOcean, AWS EC2, Heroku
+- **Database:** Managed MySQL (DigitalOcean, AWS RDS)
+- **Frontend:** Vercel, Netlify, or same server as backend
+
+### Production Checklist
+- [ ] Change default admin password
+- [ ] Set strong JWT_SECRET
+- [ ] Configure proper database credentials
+- [ ] Set up SSL/HTTPS
+- [ ] Configure CORS properly
+- [ ] Set up automated backups
+- [ ] Configure error monitoring
+- [ ] Set up logging
+- [ ] Configure rate limiting
+- [ ] Test all features in production environment
+
+## 🔧 Development Workflow
+
+1. **Feature Development**
+```bash
+git checkout -b feature/your-feature-name
+# Make changes
+git add .
+git commit -m "Add: your feature description"
+git push origin feature/your-feature-name
+```
+
+2. **Testing**
+```bash
+# Backend
+cd gym-backend
+npm test
+
+# Frontend
+cd gym-frontend
+npm test
+```
+
+3. **Code Quality**
+```bash
+# Run linter
+npm run lint
+
+# Format code
+npm run format
+```
+
+## 🐛 Common Issues
+
+### Database Connection Error
+```bash
+# Check MySQL is running
+sudo systemctl status mysql
+
+# Test connection
+mysql -u root -p
+
+# Verify credentials in .env
+```
+
+### Port Already in Use
+```bash
+# Find process using port
+lsof -i :5000
+
+# Kill process or change PORT in .env
+```
+
+### JWT Token Issues
+- Verify JWT_SECRET is set in .env
+- Check token expiration time
+- Clear localStorage and re-login
+
+### SMS Not Sending
+- Verify Twilio credentials
+- Check phone number format (+1234567890)
+- Verify Twilio account balance
+- Check recipient is verified (trial accounts)
+
+## 📊 Project Timeline
+
+**MVP Development: 8 weeks**
+
+- Week 1-2: Foundation & Authentication
+- Week 3: Membership Management
+- Week 4-5: Class Scheduling & Booking
+- Week 6: Dashboards & Notifications
+- Week 7: Reports & Export
+- Week 8: Testing, Polish & Deployment
+
+See [Implementation Roadmap](docs/IMPLEMENTATION_ROADMAP.md) for detailed timeline.
+
+## 🎯 Success Metrics
+
+After deployment, the system should achieve:
+- ✅ 50% reduction in admin time on manual tasks
+- ✅ Zero membership tracking errors
+- ✅ 90%+ member self-service for bookings
+- ✅ 95%+ uptime
+- ✅ <2s page load time
+
+## 🔮 Future Enhancements (Phase 2)
+
+- [ ] Multi-gym support (multiple locations)
+- [ ] Role-based access control (trainer, receptionist)
+- [ ] Personal training scheduling
+- [ ] Equipment reservation
+- [ ] Attendance tracking with check-in system
+- [ ] Waitlist management
+- [ ] Payment gateway integration
+- [ ] Multi-language support
+- [ ] Mobile apps (iOS/Android)
+- [ ] Member progress tracking
+- [ ] Workout plans and nutrition tracking
+- [ ] Two-way SMS communication
+- [ ] Email notifications
+- [ ] Advanced analytics and insights
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Write/update tests
+5. Ensure all tests pass
+6. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 👥 Support
+
+For issues, questions, or suggestions:
+- Create an issue on GitHub
+- Contact: [your-email@example.com]
+
+## 🙏 Acknowledgments
+
+- Twilio for SMS service
+- All open-source libraries used in this project
+
+---
+
+**Built with ❤️ for gym owners who want to focus on fitness, not paperwork.**
