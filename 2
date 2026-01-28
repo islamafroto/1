@@ -1,0 +1,1430 @@
+# GYM MANAGEMENT API DOCUMENTATION
+
+**Version:** 1.0 (MVP)  
+**Base URL:** `http://localhost:5000/api`  
+**Authentication:** JWT Bearer Token  
+**Last Updated:** 2026-01-28
+
+---
+
+## Table of Contents
+1. [Authentication](#authentication)
+2. [Users](#users)
+3. [Memberships](#memberships)
+4. [Payments](#payments)
+5. [Classes](#classes)
+6. [Class Instances](#class-instances)
+7. [Bookings](#bookings)
+8. [Notifications](#notifications)
+9. [Dashboard](#dashboard)
+10. [Settings](#settings)
+11. [Reports](#reports)
+12. [Error Handling](#error-handling)
+
+---
+
+## Authentication
+
+### 1. Login
+**Endpoint:** `POST /api/auth/login`  
+**Access:** Public  
+**Description:** Authenticate user and receive JWT token
+
+**Request Body:**
+```json
+{
+  "phone": "+1234567890",
+  "password": "userPassword123"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": 1,
+      "name": "John Doe",
+      "phone": "+1234567890",
+      "email": "john@example.com",
+      "role": "member",
+      "profile_photo": "/uploads/profile_1.jpg"
+    }
+  }
+}
+```
+
+**Error Response (401 Unauthorized):**
+```json
+{
+  "success": false,
+  "error": "Invalid phone number or password"
+}
+```
+
+---
+
+### 2. Logout
+**Endpoint:** `POST /api/auth/logout`  
+**Access:** Authenticated Users  
+**Description:** Logout user (client-side token removal)
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
+---
+
+### 3. Request Password Reset
+**Endpoint:** `POST /api/auth/request-reset`  
+**Access:** Public  
+**Description:** Request password reset via SMS
+
+**Request Body:**
+```json
+{
+  "phone": "+1234567890"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Reset code sent to your phone"
+}
+```
+
+---
+
+### 4. Reset Password
+**Endpoint:** `POST /api/auth/reset-password`  
+**Access:** Public  
+**Description:** Reset password using verification code
+
+**Request Body:**
+```json
+{
+  "phone": "+1234567890",
+  "reset_code": "123456",
+  "new_password": "newPassword123"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Password reset successfully"
+}
+```
+
+---
+
+### 5. Verify Token
+**Endpoint:** `GET /api/auth/verify`  
+**Access:** Authenticated Users  
+**Description:** Verify if token is still valid
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "user": {
+    "id": 1,
+    "name": "John Doe",
+    "role": "member"
+  }
+}
+```
+
+---
+
+## Users
+
+### 1. Create User (Member)
+**Endpoint:** `POST /api/users`  
+**Access:** Admin Only  
+**Description:** Create new member account
+
+**Request Body:**
+```json
+{
+  "name": "Jane Smith",
+  "phone": "+1234567891",
+  "email": "jane@example.com",
+  "date_of_birth": "1995-05-15",
+  "password": "tempPassword123"
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 2,
+    "name": "Jane Smith",
+    "phone": "+1234567891",
+    "email": "jane@example.com",
+    "date_of_birth": "1995-05-15",
+    "role": "member",
+    "status": "active",
+    "created_at": "2026-01-28T10:30:00Z"
+  },
+  "message": "Member created successfully"
+}
+```
+
+---
+
+### 2. Get User Profile
+**Endpoint:** `GET /api/users/:id`  
+**Access:** Admin or Own Profile  
+**Description:** Get user details
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 2,
+    "name": "Jane Smith",
+    "phone": "+1234567891",
+    "email": "jane@example.com",
+    "date_of_birth": "1995-05-15",
+    "profile_photo": null,
+    "role": "member",
+    "status": "active",
+    "membership": {
+      "id": 5,
+      "plan_type": "monthly",
+      "start_date": "2026-01-01",
+      "end_date": "2026-01-31",
+      "days_remaining": 3,
+      "status": "active"
+    }
+  }
+}
+```
+
+---
+
+### 3. Update User Profile
+**Endpoint:** `PUT /api/users/:id`  
+**Access:** Admin or Own Profile  
+**Description:** Update user information
+
+**Request Body (Member can update):**
+```json
+{
+  "name": "Jane Smith Updated",
+  "phone": "+1234567891",
+  "email": "jane.updated@example.com"
+}
+```
+
+**Request Body (Admin can additionally update):**
+```json
+{
+  "name": "Jane Smith",
+  "status": "inactive"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 2,
+    "name": "Jane Smith Updated",
+    "phone": "+1234567891",
+    "email": "jane.updated@example.com"
+  },
+  "message": "Profile updated successfully"
+}
+```
+
+---
+
+### 4. Upload Profile Photo
+**Endpoint:** `POST /api/users/:id/photo`  
+**Access:** Admin or Own Profile  
+**Description:** Upload profile photo  
+**Content-Type:** `multipart/form-data`
+
+**Request Body:**
+```
+photo: [File]
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "profile_photo": "/uploads/profiles/user_2_1706434800.jpg"
+  },
+  "message": "Photo uploaded successfully"
+}
+```
+
+---
+
+### 5. Search/List Users
+**Endpoint:** `GET /api/users`  
+**Access:** Admin Only  
+**Description:** Search and filter users
+
+**Query Parameters:**
+- `search` - Search by name or phone
+- `role` - Filter by role (admin/member)
+- `status` - Filter by status (active/inactive)
+- `page` - Page number (default: 1)
+- `limit` - Items per page (default: 20)
+
+**Example:** `GET /api/users?search=john&status=active&page=1&limit=10`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "users": [
+      {
+        "id": 1,
+        "name": "John Doe",
+        "phone": "+1234567890",
+        "email": "john@example.com",
+        "role": "member",
+        "status": "active",
+        "membership_status": "active",
+        "membership_expires": "2026-02-15"
+      }
+    ],
+    "pagination": {
+      "current_page": 1,
+      "total_pages": 5,
+      "total_users": 48,
+      "per_page": 10
+    }
+  }
+}
+```
+
+---
+
+### 6. Delete User
+**Endpoint:** `DELETE /api/users/:id`  
+**Access:** Admin Only  
+**Description:** Soft delete user (set status to inactive)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "User deactivated successfully"
+}
+```
+
+---
+
+## Memberships
+
+### 1. Create/Renew Membership
+**Endpoint:** `POST /api/memberships`  
+**Access:** Admin Only  
+**Description:** Create new membership or renew existing
+
+**Request Body:**
+```json
+{
+  "user_id": 2,
+  "plan_type": "monthly",
+  "price": 100.00,
+  "start_date": "2026-02-01",
+  "payment_method": "cash",
+  "payment_amount": 100.00
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "membership": {
+      "id": 6,
+      "user_id": 2,
+      "plan_type": "monthly",
+      "price": 100.00,
+      "start_date": "2026-02-01",
+      "end_date": "2026-03-03",
+      "grace_period_end": "2026-03-06",
+      "status": "active"
+    },
+    "payment": {
+      "id": 12,
+      "amount": 100.00,
+      "payment_date": "2026-01-28",
+      "payment_method": "cash"
+    }
+  },
+  "message": "Membership created successfully"
+}
+```
+
+---
+
+### 2. Get Membership Details
+**Endpoint:** `GET /api/memberships/:id`  
+**Access:** Admin or Membership Owner  
+**Description:** Get detailed membership information
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 6,
+    "user": {
+      "id": 2,
+      "name": "Jane Smith",
+      "phone": "+1234567891"
+    },
+    "plan_type": "monthly",
+    "price": 100.00,
+    "start_date": "2026-02-01",
+    "end_date": "2026-03-03",
+    "grace_period_end": "2026-03-06",
+    "days_remaining": 5,
+    "status": "active",
+    "payments": [
+      {
+        "id": 12,
+        "amount": 100.00,
+        "payment_date": "2026-01-28",
+        "payment_method": "cash"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 3. List Memberships
+**Endpoint:** `GET /api/memberships`  
+**Access:** Admin Only  
+**Description:** List and filter memberships
+
+**Query Parameters:**
+- `status` - Filter by status (active/expired)
+- `expiring_in_days` - Filter expiring soon (e.g., 7)
+- `plan_type` - Filter by plan
+- `page` - Page number
+- `limit` - Items per page
+
+**Example:** `GET /api/memberships?status=active&expiring_in_days=7`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "memberships": [
+      {
+        "id": 5,
+        "user_name": "John Doe",
+        "user_phone": "+1234567890",
+        "plan_type": "monthly",
+        "end_date": "2026-02-03",
+        "days_remaining": 6,
+        "status": "active"
+      }
+    ],
+    "pagination": {
+      "current_page": 1,
+      "total_pages": 2,
+      "total_memberships": 15
+    }
+  }
+}
+```
+
+---
+
+### 4. Update Membership Status
+**Endpoint:** `PATCH /api/memberships/:id/status`  
+**Access:** Admin Only  
+**Description:** Manually update membership status
+
+**Request Body:**
+```json
+{
+  "status": "cancelled",
+  "reason": "Member requested cancellation"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Membership status updated"
+}
+```
+
+---
+
+## Payments
+
+### 1. Record Payment
+**Endpoint:** `POST /api/payments`  
+**Access:** Admin Only  
+**Description:** Record a standalone payment (already handled in membership creation)
+
+**Request Body:**
+```json
+{
+  "membership_id": 6,
+  "amount": 100.00,
+  "payment_date": "2026-01-28",
+  "payment_method": "card",
+  "notes": "Late payment for January"
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 13,
+    "membership_id": 6,
+    "amount": 100.00,
+    "payment_date": "2026-01-28",
+    "payment_method": "card",
+    "recorded_by": 1
+  },
+  "message": "Payment recorded successfully"
+}
+```
+
+---
+
+### 2. Get Payment History
+**Endpoint:** `GET /api/payments/member/:memberId`  
+**Access:** Admin or Own Payments  
+**Description:** Get payment history for a member
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "member": {
+      "id": 2,
+      "name": "Jane Smith"
+    },
+    "payments": [
+      {
+        "id": 12,
+        "amount": 100.00,
+        "payment_date": "2026-01-28",
+        "payment_method": "cash",
+        "membership_plan": "monthly",
+        "recorded_by_name": "Admin User"
+      },
+      {
+        "id": 8,
+        "amount": 100.00,
+        "payment_date": "2025-12-28",
+        "payment_method": "card",
+        "membership_plan": "monthly",
+        "recorded_by_name": "Admin User"
+      }
+    ],
+    "total_paid": 200.00
+  }
+}
+```
+
+---
+
+## Classes
+
+### 1. Create Recurring Class
+**Endpoint:** `POST /api/classes`  
+**Access:** Admin Only  
+**Description:** Create recurring class schedule
+
+**Request Body:**
+```json
+{
+  "name": "Yoga Basics",
+  "instructor": "Sarah Johnson",
+  "day_of_week": 1,
+  "start_time": "18:00:00",
+  "duration": 60,
+  "capacity": 20
+}
+```
+
+**Note:** `day_of_week`: 0=Sunday, 1=Monday, ..., 6=Saturday
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 3,
+    "name": "Yoga Basics",
+    "instructor": "Sarah Johnson",
+    "day_of_week": 1,
+    "start_time": "18:00:00",
+    "duration": 60,
+    "capacity": 20,
+    "status": "active"
+  },
+  "message": "Class created successfully"
+}
+```
+
+---
+
+### 2. List All Classes
+**Endpoint:** `GET /api/classes`  
+**Access:** Authenticated Users  
+**Description:** Get all recurring class schedules
+
+**Query Parameters:**
+- `status` - Filter by status (active/inactive)
+- `day_of_week` - Filter by specific day
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 3,
+      "name": "Yoga Basics",
+      "instructor": "Sarah Johnson",
+      "day_of_week": 1,
+      "day_name": "Monday",
+      "start_time": "18:00:00",
+      "duration": 60,
+      "capacity": 20,
+      "status": "active"
+    },
+    {
+      "id": 4,
+      "name": "CrossFit",
+      "instructor": "Mike Brown",
+      "day_of_week": 3,
+      "day_name": "Wednesday",
+      "start_time": "19:00:00",
+      "duration": 45,
+      "capacity": 15,
+      "status": "active"
+    }
+  ]
+}
+```
+
+---
+
+### 3. Update Class
+**Endpoint:** `PUT /api/classes/:id`  
+**Access:** Admin Only  
+**Description:** Update recurring class details
+
+**Request Body:**
+```json
+{
+  "name": "Advanced Yoga",
+  "capacity": 25
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 3,
+    "name": "Advanced Yoga",
+    "capacity": 25
+  },
+  "message": "Class updated successfully"
+}
+```
+
+---
+
+### 4. Delete Class
+**Endpoint:** `DELETE /api/classes/:id`  
+**Access:** Admin Only  
+**Description:** Deactivate class (soft delete)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Class deactivated successfully"
+}
+```
+
+---
+
+## Class Instances
+
+### 1. Generate Class Instances
+**Endpoint:** `POST /api/class-instances/generate`  
+**Access:** Admin Only  
+**Description:** Generate class instances from recurring schedules
+
+**Request Body:**
+```json
+{
+  "class_id": 3,
+  "start_date": "2026-02-01",
+  "end_date": "2026-02-28"
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "generated_count": 4,
+    "instances": [
+      {
+        "id": 45,
+        "instance_date": "2026-02-03",
+        "start_time": "18:00:00"
+      },
+      {
+        "id": 46,
+        "instance_date": "2026-02-10",
+        "start_time": "18:00:00"
+      }
+    ]
+  },
+  "message": "Class instances generated successfully"
+}
+```
+
+---
+
+### 2. Get Upcoming Class Instances
+**Endpoint:** `GET /api/class-instances/upcoming`  
+**Access:** Authenticated Users  
+**Description:** Get upcoming class instances with availability
+
+**Query Parameters:**
+- `days` - Number of days ahead (default: 7)
+- `class_type` - Filter by class name
+- `date` - Specific date (YYYY-MM-DD)
+
+**Example:** `GET /api/class-instances/upcoming?days=7`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "instance_id": 45,
+      "class_id": 3,
+      "class_name": "Yoga Basics",
+      "instructor": "Sarah Johnson",
+      "instance_date": "2026-01-29",
+      "start_time": "18:00:00",
+      "duration": 60,
+      "capacity": 20,
+      "current_bookings": 12,
+      "available_spots": 8,
+      "status": "scheduled",
+      "is_booked_by_me": false
+    },
+    {
+      "instance_id": 47,
+      "class_id": 4,
+      "class_name": "CrossFit",
+      "instructor": "Mike Brown",
+      "instance_date": "2026-01-29",
+      "start_time": "19:00:00",
+      "duration": 45,
+      "capacity": 15,
+      "current_bookings": 15,
+      "available_spots": 0,
+      "status": "scheduled",
+      "is_booked_by_me": false
+    }
+  ]
+}
+```
+
+---
+
+### 3. Get Class Instance Details
+**Endpoint:** `GET /api/class-instances/:id`  
+**Access:** Authenticated Users  
+**Description:** Get detailed instance information
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "instance_id": 45,
+    "class_name": "Yoga Basics",
+    "instructor": "Sarah Johnson",
+    "instance_date": "2026-01-29",
+    "start_time": "18:00:00",
+    "duration": 60,
+    "capacity": 20,
+    "current_bookings": 12,
+    "available_spots": 8,
+    "status": "scheduled",
+    "bookings": [
+      {
+        "member_id": 2,
+        "member_name": "Jane Smith",
+        "booking_date": "2026-01-25T10:30:00Z"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 4. Cancel Class Instance
+**Endpoint:** `DELETE /api/class-instances/:id`  
+**Access:** Admin Only  
+**Description:** Cancel specific class instance
+
+**Request Body:**
+```json
+{
+  "reason": "Instructor unavailable"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Class instance cancelled. Notifications sent to 12 members."
+}
+```
+
+---
+
+### 5. Update Instance Capacity
+**Endpoint:** `PATCH /api/class-instances/:id/capacity`  
+**Access:** Admin Only  
+**Description:** Change capacity for specific instance
+
+**Request Body:**
+```json
+{
+  "capacity": 25
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "instance_id": 45,
+    "old_capacity": 20,
+    "new_capacity": 25
+  },
+  "message": "Capacity updated successfully"
+}
+```
+
+---
+
+## Bookings
+
+### 1. Book a Class
+**Endpoint:** `POST /api/bookings`  
+**Access:** Member Only  
+**Description:** Book a class instance
+
+**Request Body:**
+```json
+{
+  "class_instance_id": 45
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "booking_id": 89,
+    "class_instance_id": 45,
+    "class_name": "Yoga Basics",
+    "instance_date": "2026-01-29",
+    "start_time": "18:00:00",
+    "status": "confirmed"
+  },
+  "message": "Class booked successfully"
+}
+```
+
+**Error Response (400 Bad Request):**
+```json
+{
+  "success": false,
+  "error": "Class is full"
+}
+```
+
+```json
+{
+  "success": false,
+  "error": "You have already booked this class"
+}
+```
+
+```json
+{
+  "success": false,
+  "error": "Your membership has expired"
+}
+```
+
+---
+
+### 2. Cancel Booking
+**Endpoint:** `DELETE /api/bookings/:id`  
+**Access:** Member or Admin  
+**Description:** Cancel a class booking
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Booking cancelled successfully"
+}
+```
+
+**Error Response (400 Bad Request):**
+```json
+{
+  "success": false,
+  "error": "Cannot cancel booking within 2 hours of class start time"
+}
+```
+
+---
+
+### 3. Get My Bookings
+**Endpoint:** `GET /api/bookings/my-bookings`  
+**Access:** Member Only  
+**Description:** Get member's bookings
+
+**Query Parameters:**
+- `status` - Filter by status (confirmed/cancelled)
+- `time` - Filter by time (upcoming/past)
+
+**Example:** `GET /api/bookings/my-bookings?time=upcoming&status=confirmed`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "upcoming": [
+      {
+        "booking_id": 89,
+        "class_name": "Yoga Basics",
+        "instructor": "Sarah Johnson",
+        "instance_date": "2026-01-29",
+        "start_time": "18:00:00",
+        "duration": 60,
+        "status": "confirmed",
+        "can_cancel": true
+      }
+    ],
+    "past": [
+      {
+        "booking_id": 85,
+        "class_name": "CrossFit",
+        "instructor": "Mike Brown",
+        "instance_date": "2026-01-22",
+        "start_time": "19:00:00",
+        "duration": 45,
+        "status": "confirmed",
+        "can_cancel": false
+      }
+    ]
+  }
+}
+```
+
+---
+
+## Notifications
+
+### 1. Get My Notifications
+**Endpoint:** `GET /api/notifications`  
+**Access:** Authenticated Users  
+**Description:** Get user notifications
+
+**Query Parameters:**
+- `read_status` - Filter (read/unread/all)
+- `limit` - Number of notifications
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "notifications": [
+      {
+        "id": 123,
+        "type": "booking_confirmed",
+        "title": "Class Booked",
+        "message": "You have successfully booked Yoga Basics on Jan 29 at 6:00 PM",
+        "read_status": false,
+        "sent_at": "2026-01-25T10:30:00Z"
+      },
+      {
+        "id": 120,
+        "type": "membership_expiring_7_days",
+        "title": "Membership Expiring Soon",
+        "message": "Your membership expires in 7 days. Please renew to continue.",
+        "read_status": false,
+        "sent_at": "2026-01-21T09:00:00Z"
+      }
+    ],
+    "unread_count": 2
+  }
+}
+```
+
+---
+
+### 2. Mark Notification as Read
+**Endpoint:** `PATCH /api/notifications/:id/read`  
+**Access:** Notification Owner  
+**Description:** Mark notification as read
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Notification marked as read"
+}
+```
+
+---
+
+### 3. Mark All as Read
+**Endpoint:** `PATCH /api/notifications/read-all`  
+**Access:** Authenticated Users  
+**Description:** Mark all notifications as read
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "All notifications marked as read"
+}
+```
+
+---
+
+## Dashboard
+
+### 1. Admin Dashboard
+**Endpoint:** `GET /api/dashboard/admin`  
+**Access:** Admin Only  
+**Description:** Get admin dashboard metrics
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "total_active_members": 48,
+    "memberships_expiring_soon": {
+      "next_7_days": 12,
+      "next_3_days": 5,
+      "today": 2
+    },
+    "today_classes": [
+      {
+        "class_name": "Yoga Basics",
+        "start_time": "18:00:00",
+        "current_bookings": 12,
+        "capacity": 20
+      }
+    ],
+    "recent_payments": [
+      {
+        "member_name": "Jane Smith",
+        "amount": 100.00,
+        "payment_date": "2026-01-28",
+        "plan_type": "monthly"
+      }
+    ],
+    "revenue": {
+      "this_week": 850.00,
+      "this_month": 3200.00
+    }
+  }
+}
+```
+
+---
+
+### 2. Member Dashboard
+**Endpoint:** `GET /api/dashboard/member`  
+**Access:** Member Only  
+**Description:** Get member dashboard data
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "membership": {
+      "plan_type": "monthly",
+      "start_date": "2026-01-01",
+      "end_date": "2026-01-31",
+      "days_remaining": 3,
+      "status": "active",
+      "status_color": "yellow"
+    },
+    "upcoming_bookings": [
+      {
+        "booking_id": 89,
+        "class_name": "Yoga Basics",
+        "instance_date": "2026-01-29",
+        "start_time": "18:00:00"
+      }
+    ],
+    "unread_notifications": 2
+  }
+}
+```
+
+---
+
+## Settings
+
+### 1. Get All Settings
+**Endpoint:** `GET /api/settings`  
+**Access:** Admin Only  
+**Description:** Get all system settings
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "gym_info": {
+      "gym_name": "Fitness Center",
+      "gym_address": "123 Main St",
+      "gym_phone": "+1234567890",
+      "gym_email": "info@gym.com"
+    },
+    "pricing": {
+      "monthly_price": 100.00,
+      "quarterly_price": 270.00,
+      "annual_price": 1000.00
+    },
+    "policies": {
+      "grace_period_days": 3,
+      "booking_advance_days": 7,
+      "cancellation_hours": 2
+    },
+    "notifications": {
+      "sms_enabled": true,
+      "notifications_enabled": true
+    }
+  }
+}
+```
+
+---
+
+### 2. Update Settings
+**Endpoint:** `PUT /api/settings`  
+**Access:** Admin Only  
+**Description:** Update system settings
+
+**Request Body:**
+```json
+{
+  "monthly_price": 120.00,
+  "grace_period_days": 5,
+  "gym_name": "Elite Fitness Center"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Settings updated successfully",
+  "updated_fields": ["monthly_price", "grace_period_days", "gym_name"]
+}
+```
+
+---
+
+## Reports
+
+### 1. Membership Report
+**Endpoint:** `GET /api/reports/memberships`  
+**Access:** Admin Only  
+**Description:** Generate membership report
+
+**Query Parameters:**
+- `status` - Filter by status
+- `start_date` - Report start date
+- `end_date` - Report end date
+- `format` - Response format (json/csv)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "total_active": 48,
+      "total_expired": 12,
+      "expiring_next_7_days": 8
+    },
+    "members": [
+      {
+        "name": "John Doe",
+        "phone": "+1234567890",
+        "plan_type": "monthly",
+        "start_date": "2026-01-01",
+        "end_date": "2026-01-31",
+        "status": "active"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 2. Revenue Report
+**Endpoint:** `GET /api/reports/revenue`  
+**Access:** Admin Only  
+**Description:** Generate revenue report
+
+**Query Parameters:**
+- `start_date` - Report start date
+- `end_date` - Report end date
+- `group_by` - Grouping (day/week/month)
+- `format` - Response format (json/csv)
+
+**Example:** `GET /api/reports/revenue?start_date=2026-01-01&end_date=2026-01-31&group_by=week`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "total_revenue": 4850.00,
+      "total_payments": 52,
+      "by_plan": {
+        "monthly": 3200.00,
+        "quarterly": 1350.00,
+        "annual": 300.00
+      }
+    },
+    "breakdown": [
+      {
+        "week": "2026-W04",
+        "revenue": 850.00,
+        "payment_count": 9
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 3. Export Report
+**Endpoint:** `GET /api/reports/export`  
+**Access:** Admin Only  
+**Description:** Export report as CSV/Excel
+
+**Query Parameters:**
+- `report_type` - Type (memberships/revenue/payments)
+- `start_date` - Start date
+- `end_date` - End date
+- `format` - Format (csv/xlsx)
+
+**Response:** File download
+
+---
+
+## Error Handling
+
+### Standard Error Response Format
+```json
+{
+  "success": false,
+  "error": "Error message describing what went wrong",
+  "code": "ERROR_CODE",
+  "details": {} // Optional additional details
+}
+```
+
+### Common HTTP Status Codes
+- `200 OK` - Successful request
+- `201 Created` - Resource created successfully
+- `400 Bad Request` - Invalid request data
+- `401 Unauthorized` - Authentication required or failed
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - Resource not found
+- `409 Conflict` - Resource conflict (e.g., duplicate booking)
+- `422 Unprocessable Entity` - Validation error
+- `500 Internal Server Error` - Server error
+
+### Common Error Codes
+- `AUTH_FAILED` - Authentication failed
+- `INVALID_TOKEN` - JWT token invalid or expired
+- `INSUFFICIENT_PERMISSIONS` - User lacks required permissions
+- `VALIDATION_ERROR` - Request validation failed
+- `RESOURCE_NOT_FOUND` - Requested resource doesn't exist
+- `MEMBERSHIP_EXPIRED` - Member's membership has expired
+- `CLASS_FULL` - Class has reached capacity
+- `BOOKING_EXISTS` - Member already booked this class
+- `CANCELLATION_DEADLINE_PASSED` - Too late to cancel
+- `DUPLICATE_ENTRY` - Resource already exists
+
+### Example Error Responses
+
+**Validation Error (422):**
+```json
+{
+  "success": false,
+  "error": "Validation failed",
+  "code": "VALIDATION_ERROR",
+  "details": {
+    "phone": "Phone number is required",
+    "password": "Password must be at least 8 characters"
+  }
+}
+```
+
+**Unauthorized (401):**
+```json
+{
+  "success": false,
+  "error": "Invalid or expired token",
+  "code": "INVALID_TOKEN"
+}
+```
+
+**Forbidden (403):**
+```json
+{
+  "success": false,
+  "error": "You don't have permission to perform this action",
+  "code": "INSUFFICIENT_PERMISSIONS"
+}
+```
+
+---
+
+## Rate Limiting
+- Authentication endpoints: 5 requests per minute
+- General API endpoints: 100 requests per minute per user
+- Report generation: 10 requests per hour
+
+**Rate Limit Headers:**
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1706434800
+```
+
+---
+
+## Pagination
+For list endpoints, use these query parameters:
+- `page` - Page number (default: 1)
+- `limit` - Items per page (default: 20, max: 100)
+
+**Pagination Response:**
+```json
+{
+  "pagination": {
+    "current_page": 1,
+    "total_pages": 5,
+    "total_items": 95,
+    "per_page": 20,
+    "has_next": true,
+    "has_prev": false
+  }
+}
+```
+
+---
+
+## Websocket Events (Real-time Notifications)
+
+**Connection:**
+```javascript
+const socket = io('http://localhost:5000', {
+  auth: { token: 'your-jwt-token' }
+});
+```
+
+**Events:**
+- `notification:new` - New notification received
+- `booking:cancelled` - Class booking cancelled
+- `class:cancelled` - Class instance cancelled
+- `membership:expiring` - Membership expiring soon
+
+**Example:**
+```javascript
+socket.on('notification:new', (data) => {
+  console.log(data);
+  // { type: 'booking_confirmed', message: '...', ... }
+});
+```
+
+---
+
+**End of API Documentation**
