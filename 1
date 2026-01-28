@@ -1,0 +1,386 @@
+-- ============================================
+-- GYM MANAGEMENT APPLICATION - DATABASE SCHEMA
+-- ============================================
+-- Database: gym_management
+-- Version: 1.0 (MVP)
+-- Last Updated: 2026-01-28
+-- ============================================
+
+-- Create Database
+CREATE DATABASE IF NOT EXISTS gym_management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE gym_management;
+
+-- ============================================
+-- TABLE: users
+-- Description: Stores all users (admins and members)
+-- ============================================
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) NOT NULL UNIQUE,
+    email VARCHAR(100),
+    date_of_birth DATE,
+    password_hash VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'member') NOT NULL DEFAULT 'member',
+    profile_photo VARCHAR(255),
+    status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_phone (phone),
+    INDEX idx_role (role),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- TABLE: memberships
+-- Description: Tracks member subscriptions
+-- ============================================
+CREATE TABLE memberships (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    plan_type ENUM('monthly', 'quarterly', 'annual') NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    grace_period_end DATE NOT NULL,
+    status ENUM('active', 'expired', 'cancelled') NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status),
+    INDEX idx_end_date (end_date),
+    INDEX idx_grace_period_end (grace_period_end)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- TABLE: payments
+-- Description: Records all payment transactions
+-- ============================================
+CREATE TABLE payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    membership_id INT NOT NULL,
+    user_id INT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    payment_date DATE NOT NULL,
+    payment_method ENUM('cash', 'card', 'bank_transfer') NOT NULL,
+    recorded_by INT NOT NULL COMMENT 'Admin user ID who recorded this payment',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (membership_id) REFERENCES memberships(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (recorded_by) REFERENCES users(id),
+    INDEX idx_membership_id (membership_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_payment_date (payment_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- TABLE: classes
+-- Description: Recurring class schedules (templates)
+-- ============================================
+CREATE TABLE classes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    instructor VARCHAR(100) NOT NULL,
+    day_of_week TINYINT NOT NULL COMMENT '0=Sunday, 1=Monday, ..., 6=Saturday',
+    start_time TIME NOT NULL,
+    duration INT NOT NULL COMMENT 'Duration in minutes',
+    capacity INT NOT NULL DEFAULT 20,
+    status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_day_of_week (day_of_week),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- TABLE: class_instances
+-- Description: Actual class occurrences generated from recurring schedules
+-- ============================================
+CREATE TABLE class_instances (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    class_id INT NOT NULL,
+    instance_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    duration INT NOT NULL COMMENT 'Duration in minutes',
+    capacity INT NOT NULL,
+    current_bookings INT NOT NULL DEFAULT 0,
+    status ENUM('scheduled', 'cancelled', 'completed') NOT NULL DEFAULT 'scheduled',
+    cancelled_by INT COMMENT 'Admin user ID who cancelled this instance',
+    cancellation_reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+    FOREIGN KEY (cancelled_by) REFERENCES users(id),
+    INDEX idx_class_id (class_id),
+    INDEX idx_instance_date (instance_date),
+    INDEX idx_status (status),
+    UNIQUE KEY unique_class_datetime (class_id, instance_date, start_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- TABLE: bookings
+-- Description: Member class bookings
+-- ============================================
+CREATE TABLE bookings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    class_instance_id INT NOT NULL,
+    member_id INT NOT NULL,
+    booking_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('confirmed', 'cancelled') NOT NULL DEFAULT 'confirmed',
+    cancelled_at TIMESTAMP NULL,
+    
+    FOREIGN KEY (class_instance_id) REFERENCES class_instances(id) ON DELETE CASCADE,
+    FOREIGN KEY (member_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_class_instance_id (class_instance_id),
+    INDEX idx_member_id (member_id),
+    INDEX idx_status (status),
+    UNIQUE KEY unique_member_class (class_instance_id, member_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- TABLE: notifications
+-- Description: System and user notifications
+-- ============================================
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type ENUM(
+        'membership_expiring_7_days',
+        'membership_expiring_3_days',
+        'membership_expired',
+        'booking_confirmed',
+        'booking_cancelled',
+        'class_cancelled',
+        'admin_report'
+    ) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    sent_via ENUM('sms', 'in_app', 'both') NOT NULL DEFAULT 'both',
+    sms_status ENUM('pending', 'sent', 'failed') DEFAULT 'pending',
+    sms_sid VARCHAR(100) COMMENT 'Twilio message SID',
+    read_status BOOLEAN DEFAULT FALSE,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    read_at TIMESTAMP NULL,
+    
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_type (type),
+    INDEX idx_read_status (read_status),
+    INDEX idx_sent_at (sent_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- TABLE: settings
+-- Description: System configuration settings
+-- ============================================
+CREATE TABLE settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    setting_key VARCHAR(100) NOT NULL UNIQUE,
+    setting_value TEXT NOT NULL,
+    setting_type ENUM('string', 'number', 'boolean', 'json') NOT NULL DEFAULT 'string',
+    description TEXT,
+    updated_by INT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (updated_by) REFERENCES users(id),
+    INDEX idx_setting_key (setting_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- TABLE: admin_actions (Optional - for audit trail)
+-- Description: Logs important admin actions
+-- ============================================
+CREATE TABLE admin_actions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NOT NULL,
+    action_type ENUM(
+        'create_member',
+        'update_member',
+        'create_membership',
+        'record_payment',
+        'create_class',
+        'cancel_class_instance',
+        'update_settings'
+    ) NOT NULL,
+    target_type VARCHAR(50) COMMENT 'Table name (users, memberships, etc.)',
+    target_id INT COMMENT 'ID of affected record',
+    action_details JSON COMMENT 'Additional context about the action',
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_admin_id (admin_id),
+    INDEX idx_action_type (action_type),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- INITIAL DATA - Default Settings
+-- ============================================
+INSERT INTO settings (setting_key, setting_value, setting_type, description) VALUES
+('gym_name', 'Fitness Center', 'string', 'Name of the gym'),
+('gym_address', '', 'string', 'Physical address'),
+('gym_phone', '', 'string', 'Contact phone number'),
+('gym_email', '', 'string', 'Contact email'),
+
+('monthly_price', '100.00', 'number', 'Default monthly membership price'),
+('quarterly_price', '270.00', 'number', 'Default quarterly membership price'),
+('annual_price', '1000.00', 'number', 'Default annual membership price'),
+
+('grace_period_days', '3', 'number', 'Grace period after membership expiration'),
+('booking_advance_days', '7', 'number', 'How many days in advance members can book'),
+('cancellation_hours', '2', 'number', 'Hours before class start that cancellation is allowed'),
+
+('sms_enabled', 'true', 'boolean', 'Enable SMS notifications'),
+('notifications_enabled', 'true', 'boolean', 'Enable in-app notifications');
+
+-- ============================================
+-- INITIAL DATA - Default Admin User
+-- Password: Admin@123 (CHANGE THIS IMMEDIATELY IN PRODUCTION!)
+-- ============================================
+INSERT INTO users (name, phone, email, password_hash, role, status) VALUES
+('System Admin', '+1234567890', 'admin@gym.com', '$2b$10$YourHashedPasswordHere', 'admin', 'active');
+
+-- ============================================
+-- VIEWS - Helpful queries
+-- ============================================
+
+-- View: Active memberships with member info
+CREATE VIEW active_memberships_view AS
+SELECT 
+    m.id AS membership_id,
+    m.user_id,
+    u.name,
+    u.phone,
+    m.plan_type,
+    m.start_date,
+    m.end_date,
+    m.grace_period_end,
+    DATEDIFF(m.end_date, CURDATE()) AS days_remaining,
+    m.status
+FROM memberships m
+JOIN users u ON m.user_id = u.id
+WHERE m.status = 'active';
+
+-- View: Upcoming classes with booking counts
+CREATE VIEW upcoming_classes_view AS
+SELECT 
+    ci.id AS instance_id,
+    c.name AS class_name,
+    c.instructor,
+    ci.instance_date,
+    ci.start_time,
+    ci.duration,
+    ci.capacity,
+    ci.current_bookings,
+    (ci.capacity - ci.current_bookings) AS available_spots,
+    ci.status
+FROM class_instances ci
+JOIN classes c ON ci.class_id = c.id
+WHERE ci.instance_date >= CURDATE() 
+  AND ci.status = 'scheduled'
+ORDER BY ci.instance_date, ci.start_time;
+
+-- ============================================
+-- TRIGGERS - Automatic updates
+-- ============================================
+
+-- Trigger: Update current_bookings when booking is created
+DELIMITER //
+CREATE TRIGGER after_booking_insert
+AFTER INSERT ON bookings
+FOR EACH ROW
+BEGIN
+    IF NEW.status = 'confirmed' THEN
+        UPDATE class_instances 
+        SET current_bookings = current_bookings + 1
+        WHERE id = NEW.class_instance_id;
+    END IF;
+END;//
+
+-- Trigger: Update current_bookings when booking is cancelled
+CREATE TRIGGER after_booking_update
+AFTER UPDATE ON bookings
+FOR EACH ROW
+BEGIN
+    IF OLD.status = 'confirmed' AND NEW.status = 'cancelled' THEN
+        UPDATE class_instances 
+        SET current_bookings = current_bookings - 1
+        WHERE id = NEW.class_instance_id;
+    END IF;
+END;//
+
+DELIMITER ;
+
+-- ============================================
+-- INDEXES FOR PERFORMANCE
+-- ============================================
+-- Most indexes are already created above with tables
+-- Additional composite indexes for common queries:
+
+CREATE INDEX idx_membership_user_status ON memberships(user_id, status);
+CREATE INDEX idx_booking_member_status ON bookings(member_id, status);
+CREATE INDEX idx_class_instance_date_status ON class_instances(instance_date, status);
+
+-- ============================================
+-- STORED PROCEDURES (Optional but useful)
+-- ============================================
+
+-- Procedure: Get member dashboard data
+DELIMITER //
+CREATE PROCEDURE get_member_dashboard(IN p_user_id INT)
+BEGIN
+    -- Membership info
+    SELECT * FROM memberships 
+    WHERE user_id = p_user_id AND status = 'active'
+    LIMIT 1;
+    
+    -- Upcoming bookings
+    SELECT 
+        b.id,
+        c.name AS class_name,
+        c.instructor,
+        ci.instance_date,
+        ci.start_time,
+        b.status
+    FROM bookings b
+    JOIN class_instances ci ON b.class_instance_id = ci.id
+    JOIN classes c ON ci.class_id = c.id
+    WHERE b.member_id = p_user_id 
+      AND b.status = 'confirmed'
+      AND ci.instance_date >= CURDATE()
+    ORDER BY ci.instance_date, ci.start_time
+    LIMIT 10;
+    
+    -- Unread notifications
+    SELECT COUNT(*) AS unread_count
+    FROM notifications
+    WHERE user_id = p_user_id AND read_status = FALSE;
+END;//
+
+DELIMITER ;
+
+-- ============================================
+-- COMMENTS & DOCUMENTATION
+-- ============================================
+-- This schema is designed for:
+-- 1. Single gym operation (MVP)
+-- 2. Easy migration to multi-gym in Phase 2
+-- 3. Performance optimization with proper indexes
+-- 4. Data integrity with foreign keys and triggers
+-- 5. Audit trail with admin_actions table
+
+-- For multi-gym support in future, add:
+-- - gym_locations table
+-- - Add gym_id to relevant tables (users, classes, etc.)
+
+-- ============================================
+-- END OF SCHEMA
+-- ============================================
